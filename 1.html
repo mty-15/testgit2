@@ -11,6 +11,17 @@
             box-sizing: border-box;
             font-family: 'Arial', sans-serif;
         }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
         
         body {
             background-color: #f5f5f5;
@@ -27,6 +38,46 @@
             padding: 40px;
             width: 400px;
             max-width: 90%;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 13px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .error {
+            border-color: #e74c3c !important;
+        }
+
+        .shake {
+            animation: shake 0.5s;
+        }
+
+        .loading {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .loading::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         .login-header {
@@ -100,6 +151,11 @@
         .login-button:hover {
             background-color: #3367d6;
         }
+
+        .login-button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
         
         .forgot-password {
             text-align: center;
@@ -148,18 +204,82 @@
         </form>
     </div>
     <script>
-        document.querySelector('form').addEventListener('submit', function(e) {
+        // 表单验证
+        const form = document.querySelector('form');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const usernameError = document.createElement('div');
+        usernameError.className = 'error-message';
+        usernameInput.parentNode.appendChild(usernameError);
+
+        const passwordError = document.createElement('div');
+        passwordError.className = 'error-message';
+        passwordInput.parentNode.appendChild(passwordError);
+
+        // 输入验证
+        usernameInput.addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.classList.remove('error');
+                usernameError.style.display = 'none';
+            }
+        });
+
+        passwordInput.addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.classList.remove('error');
+                passwordError.style.display = 'none';
+            }
+        });
+
+        // 表单提交
+        form.addEventListener('submit', function(e) {
             e.preventDefault();
-            // 简单验证用户名和密码
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
             
-            if(username && password) {
+            let isValid = true;
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+            const loginButton = document.querySelector('.login-button');
+
+            // 验证用户名
+            if (!username) {
+                usernameInput.classList.add('error');
+                usernameError.textContent = '请输入用户名';
+                usernameError.style.display = 'block';
+                isValid = false;
+            }
+
+            // 验证密码
+            if (!password) {
+                passwordInput.classList.add('error');
+                passwordError.textContent = '请输入密码';
+                passwordError.style.display = 'block';
+                isValid = false;
+            }
+
+            if (!isValid) {
+                form.classList.add('shake');
+                setTimeout(() => form.classList.remove('shake'), 500);
+                return;
+            }
+
+            // 显示加载状态
+            loginButton.disabled = true;
+            loginButton.classList.add('loading');
+            
+            // 模拟API请求延迟
+            setTimeout(() => {
                 // 验证通过，跳转到贪吃蛇页面
                 window.location.href = '2.html';
-            } else {
-                alert('请输入用户名和密码');
-            }
+            }, 1500);
+        });
+
+        // 页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.style.opacity = 0;
+            setTimeout(() => {
+                document.body.style.transition = 'opacity 0.5s ease';
+                document.body.style.opacity = 1;
+            }, 100);
         });
     </script>
 </body>

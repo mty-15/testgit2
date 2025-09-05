@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>贪吃蛇游戏</title>
+    <!-- 添加音效 -->
+    <audio id="eat-sound" src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3" preload="auto"></audio>
+    <audio id="game-over-sound" src="https://assets.mixkit.co/sfx/preview/mixkit-retro-arcade-lose-2027.mp3" preload="auto"></audio>
     <style>
         body {
             margin: 0;
@@ -36,6 +39,31 @@
             background-color: rgba(255, 255, 255, 0.9);
             padding: 20px;
             border-radius: 10px;
+            min-width: 300px;
+        }
+
+        .difficulty-options {
+            margin: 20px 0;
+        }
+
+        .difficulty-btn {
+            padding: 8px 15px;
+            margin: 5px;
+            background-color: #f1f1f1;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .difficulty-btn:hover {
+            background-color: #e0e0e0;
+        }
+
+        .difficulty-btn.active {
+            background-color: #4CAF50;
+            color: white;
+            border-color: #45a049;
         }
         
         #score-container {
@@ -73,6 +101,8 @@
             border-radius: 5px;
             cursor: pointer;
             font-size: 16px;
+            display: block;
+            width: 100%;
         }
         
         #start-btn:hover, #restart-btn:hover {
@@ -91,10 +121,17 @@
         <canvas id="game-canvas" width="400" height="400"></canvas>
         <div id="start-screen">
             <h2 style="color: #333; margin-bottom: 20px;">贪吃蛇游戏</h2>
+            <div class="difficulty-options">
+                <p>选择难度:</p>
+                <button class="difficulty-btn active" data-speed="150">简单</button>
+                <button class="difficulty-btn" data-speed="100">中等</button>
+                <button class="difficulty-btn" data-speed="50">困难</button>
+            </div>
             <button id="start-btn">开始游戏</button>
         </div>
         <div id="score-container">
             <div id="score">得分: 0</div>
+            <div id="high-score">最高分: 0</div>
             <a href="1.html" class="back-link">退出游戏</a>
         </div>
         <div id="game-over">
@@ -108,6 +145,11 @@
         // 游戏常量
         const GRID_SIZE = 20;
         const CELL_SIZE = 20;
+        const FOOD_TYPES = {
+            NORMAL: 1,
+            GOLDEN: 2,
+            SPEED: 3
+        };
         const DIRECTIONS = {
             UP: { x: 0, y: -1 },
             DOWN: { x: 0, y: 1 },
@@ -122,6 +164,10 @@
         let score;
         let gameLoop;
         let gameOver = false;
+        let gameSpeed = 150;
+        let highScore = localStorage.getItem('snakeHighScore') || 0;
+        let eatSound = document.getElementById('eat-sound');
+        let gameOverSound = document.getElementById('game-over-sound');
 
         // 初始化游戏
         function initGame() {
@@ -142,6 +188,7 @@
             // 初始化分数
             score = 0;
             document.getElementById('score').textContent = `得分: ${score}`;
+            document.getElementById('high-score').textContent = `最高分: ${highScore}`;
             
             // 生成食物
             generateFood();
@@ -158,7 +205,7 @@
             
             // 开始游戏循环
             if (gameLoop) clearInterval(gameLoop);
-            gameLoop = setInterval(gameStep, 100);
+            gameLoop = setInterval(gameStep, gameSpeed);
         }
 
         // 游戏主循环
@@ -188,9 +235,37 @@
             
             // 检查是否吃到食物
             if (head.x === food.x && head.y === food.y) {
-                score++;
+                // 播放吃食物音效
+                if (eatSound) {
+                    eatSound.currentTime = 0;
+                    eatSound.play();
+                }
+                
+                // 根据食物类型处理得分
+                if (food.type === FOOD_TYPES.GOLDEN) {
+                    score += 5;
+                } else if (food.type === FOOD_TYPES.SPEED) {
+                    score += 2;
+                    // 临时加速效果
+                    clearInterval(gameLoop);
+                    gameLoop = setInterval(gameStep, gameSpeed / 2);
+                    setTimeout(() => {
+                        clearInterval(gameLoop);
+                        gameLoop = setInterval(gameStep, gameSpeed);
+                    }, 3000);
+                } else {
+                    score++;
+                }
+                
                 document.getElementById('score').textContent = `得分: ${score}`;
                 generateFood();
+                
+                // 吃到食物时的视觉反馈
+                ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                setTimeout(() => {
+                    drawGame();
+                }, 100);
             } else {
                 // 如果没有吃到食物，移除蛇尾
                 snake.pop();
@@ -217,13 +292,37 @@
             });
             
             // 绘制食物
-            ctx.fillStyle = '#FF5722';
-            ctx.fillRect(
-                food.x * CELL_SIZE,
-                food.y * CELL_SIZE,
-                CELL_SIZE - 1,
-                CELL_SIZE - 1
+            if (food.type === FOOD_TYPES.GOLDEN) {
+                ctx.fillStyle = '#FFD700';
+            } else if (food.type === FOOD_TYPES.SPEED) {
+                ctx.fillStyle = '#00BFFF';
+            } else {
+                ctx.fillStyle = '#FF5722';
+            }
+            
+            ctx.beginPath();
+            ctx.arc(
+                food.x * CELL_SIZE + CELL_SIZE / 2,
+                food.y * CELL_SIZE + CELL_SIZE / 2,
+                CELL_SIZE / 2 - 1,
+                0,
+                Math.PI * 2
             );
+            ctx.fill();
+            
+            // 特殊食物标记
+            if (food.type === FOOD_TYPES.GOLDEN) {
+                ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+                ctx.beginPath();
+                ctx.arc(
+                    food.x * CELL_SIZE + CELL_SIZE / 2,
+                    food.y * CELL_SIZE + CELL_SIZE / 2,
+                    CELL_SIZE / 2 + 2,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+            }
         }
 
         // 生成食物
@@ -232,7 +331,10 @@
             do {
                 newFood = {
                     x: Math.floor(Math.random() * GRID_SIZE),
-                    y: Math.floor(Math.random() * GRID_SIZE)
+                    y: Math.floor(Math.random() * GRID_SIZE),
+                    type: Math.random() > 0.8 ? 
+                          (Math.random() > 0.5 ? FOOD_TYPES.GOLDEN : FOOD_TYPES.SPEED) : 
+                          FOOD_TYPES.NORMAL
                 };
             } while (snake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
             
@@ -245,7 +347,28 @@
             clearInterval(gameLoop);
             document.getElementById('final-score').textContent = score;
             document.getElementById('game-over').style.display = 'block';
+            
+            // 播放游戏结束音效
+            if (gameOverSound) {
+                gameOverSound.currentTime = 0;
+                gameOverSound.play();
+            }
+            
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('snakeHighScore', highScore);
+                document.getElementById('high-score').textContent = `最高分: ${highScore}`;
+            }
         }
+
+        // 难度选择
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                gameSpeed = parseInt(this.dataset.speed);
+            });
+        });
 
         // 键盘控制
         document.addEventListener('keydown', event => {
