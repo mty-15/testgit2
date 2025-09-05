@@ -147,5 +147,20 @@
             </div>
         </form>
     </div>
+    <script>
+        document.querySelector('form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            // 简单验证用户名和密码
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if(username && password) {
+                // 验证通过，跳转到贪吃蛇页面
+                window.location.href = '2.html';
+            } else {
+                alert('请输入用户名和密码');
+            }
+        });
+    </script>
 </body>
 </html>
